@@ -23,6 +23,7 @@ create or replace package AC_req_actions(
   procedure contains_legal_holidays(start_d date, end_d date, how_many out number); -- we check if interval contains legal holidays and use the out to calculate total number of days 
 );
 
+SELECT * FROM LEGAL_days;
 select * from employees
 select * from requests;
 create or replace package body AC_req_actions() as
@@ -30,6 +31,43 @@ create or replace package body AC_req_actions() as
   poate_insera boolean;
   este_admin boolean;
   exm varchar2(500);
+  function num_days_in_interval(pst_date date, pend_Date date) return number as
+    -- we choose all legal days that are not in a weekend
+    cursor c_legal_day is
+      select legal_date from legal_days ld
+        where ld.in_year = to_char(sysdate,'YYYY')
+          and (MOD(TO_CHAR(legal_date, 'J'), 7) + 1 NOT IN (6, 7));
+    init_number number;
+	  curr_Date date; -- cursor date that we use to go through the interval
+    err_m varchar2(500);
+  begin
+   -- we calculate the default number of days between the interval
+    select (trunc(pend_date + 1) - trunc(pst_date)) into init_number from dual;
+     dbms_output.put_line('starting point ->' || init_number);
+    curr_date := pst_Date;
+    -- we firstly exclude weekend days if there are any
+    loop
+       --dbms_output.put_line('data -> ' || curr_date);
+      if (MOD(TO_CHAR(curr_date, 'J'), 7) + 1 IN (6, 7)) then
+        init_number := init_number -1;
+        /*dbms_output.put_line('este weekend');*/
+      end if;
+      curr_date := curr_date+1;
+      exit when curr_date > pend_date;
+    end loop;
+    -- now we exclude legal days that have already been checked for weekend overlap
+    for x in c_legal_day loop
+      if ((x.legal_date >= pst_date) and (x.legal_date <= pend_date)) then
+        init_number := init_number - 1;
+      end if;
+    end loop;
+        
+    return init_number;
+  exception
+    when others then
+      err_m := substr(sqlerrm, 1, 500);
+      raise_application_error(-20150, err_m);
+  end num_days_in_interval;
   
   function validate_period(p_start_date date, p_end_date date, pdept varchar) as
       -- we search for how many days of the interval are already covered 
