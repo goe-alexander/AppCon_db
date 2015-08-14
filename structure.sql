@@ -66,8 +66,13 @@ create table legal_days(
   in_year varchar2(10),
   constraint pk_leg_days primary key (legal_date, in_year)
 );
+select * from app_users;
 
-
+create table user_credentials(
+  user_nm varchar2(60),
+  pass_word varchar2(256) 
+  --constraint fk_usr_nm_cred foreign key (user_nm) references app_users(code)
+); 
 
 create table user_atributions(
   user_id number(10),
@@ -85,6 +90,11 @@ create table role_types(
   constraint chck_is_actv check (active in ('D', 'N')) 
   
 );
+create sequence role_types_seq
+          start with 1
+          increment by 1
+          NOCYCLE
+          NOCACHE;
 drop table user_accounts;
 create table user_accounts(
   user_id number(10) primary key,
@@ -214,8 +224,6 @@ create table app_users(
   code varchar2(60),
   emp_id number(10),
   Active varchar2(1) default 'D', 
-  is_manager varchar2(1),
-  is_admin varchar2(1),
   constraint fk_emp_id foreign key (emp_id) references employees(emp_id),
   constraint ck_activ_in_val check (active in ('D', 'N'))
 );
