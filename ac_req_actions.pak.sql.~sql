@@ -34,9 +34,19 @@ create or replace package ADMIN_UTILS as
   -- admin procedure for registering new accounts.
   procedure create new_user(p_user_name varchar2, p_password varchar2, p_department varchar2);
 end ADMIN_UTILS;
-create or replace package body AC_req_actions as
-  -- packet variables
 
+create or replace package AC_req_actions as
+  procedure insert_request(p_l_type varchar, p_start_date varchar2, p_end_date varchar2, p_app_user_id varchar2, p_dept_id number, p_total_days number, p_out_msg out varchar2); 
+  function num_days_in_interval(pst_date date, pend_Date date) return number;
+  procedure delete_this_request(pid_req number, acc_id number, pmsg_out out varchar2);
+  procedure update_this__request(pid_req number, acc_Id number, pmsg_out out varchar2 );
+end AC_req_actions;
+
+create or replace package body AC_req_actions as
+  -- variabile de pachet
+  poate_insera boolean;
+
+  este_admin boolean;
   function num_days_in_interval(pst_date date, pend_Date date) return number as
     -- we choose all legal days that are not in a weekend
     cursor c_legal_day is
@@ -177,7 +187,6 @@ create or replace package body AC_req_actions as
                 p_l_type,
                 'SUBMIT',
                 trunc(sysdate),
-                (select au.id from app_users au where au.code = p_app_user_id),
                 v_dept_id,
                 p_start_date,
                 p_end_date,
@@ -198,7 +207,6 @@ create or replace package body AC_req_actions as
     null;
   end;
   procedure update_this__request(pid_req number, acc_Id number, pmsg_out out varchar2 ) is
-
   begin
     null;
   end;
