@@ -6,6 +6,7 @@ select * from status_types for update
 create or replace package REMAINING_DAYS as
   -- admin procedure for registering new accounts.
   function get_remaining_vac_days(pacc_id number, pdept_id number, pnow_interval number) return number;
+  function get_default_remaining_days(pacc_id number, pdept_id number) return number;
 end REMAINING_DAYS;
 create or replace package body REMAINING_DAYS as
 
@@ -15,7 +16,7 @@ create or replace package body REMAINING_DAYS as
   pp_hired_this_year boolean := false;
   pp_total_leave_days days_per_year.max_no_days%type;
   pp_dept_code varchar2(60);
-
+  pp_days_per_month number;
   procedure init_pp(pacc_id number, pdept_id number) is
     cursor c_get_emp is
       select ap.emp_id
@@ -30,6 +31,7 @@ create or replace package body REMAINING_DAYS as
       pp_emp_id := cge.emp_id;
       begin
         select dp.max_no_days into pp_total_leave_days from days_per_year dp where dp.req_code = 'VACATION_LEAVE';
+        select dpm.no_of_days into pp_days_per_month from days_per_month dpm where dpm.req_code = 'VACATION_LEAVE';
         select emp.trial_period into  pp_trial_period  from employees emp where emp.emp_id = (select ap.emp_id from app_users ap where ap.id = pacc_id);
         select dt.code into pp_dept_code from departments dt where dt.dep_id = pdept_id;
         for x in (select 1 from employees emp where emp.emp_id = pp_emp_id and extract(YEAR from emp.hire_date) = extract(year from sysdate) and rownum = 1) loop
@@ -69,7 +71,8 @@ create or replace package body REMAINING_DAYS as
         errm := substr(sqlerrm, 1, 500);
         raise_application_error( -20150, errm);
     end;
-    calc_days := round((mb * 2), 0 );
+    -- we multiply the months between with the standard number per month
+    calc_days := round((mb * pp_days_per_month), 0 );
     return calc_days;
   exception
     when others then
@@ -109,7 +112,7 @@ create or replace package body REMAINING_DAYS as
       remaining_result := remaining_result - (total_days_taken + pnow_interval);
     elsif (pp_trial_period = 'D') then
       -- assuming standard contract is 3 months then we have
-      remaining_result := 6 - (total_days_taken + pnow_interval);
+      remaining_result := (3 * pp_days_per_month) - (total_days_taken + pnow_interval);
     end if;
     return remaining_result;
   exception
@@ -118,7 +121,55 @@ create or replace package body REMAINING_DAYS as
       raise_application_error(-20150, errm) ;
   end;
 
+  function get_default_remaining_days(pacc_id number, pdept_id number) return number as
+    cursor c_get_taken_days is
+      select rq.total_no_of_days
+        from requests rq
+       where acc_id = pacc_id 
+         and rq.dept_id = pdept_id
+         and rq.status = 'RESOLVED'
+         and extract(YEAR FROM rq.start_date) = extract(YEAR from sysdate)
+         and rq.resolved = 'D'
+         and rq.type_of_req = 'VACATION_LEAVE';
+    cgt c_get_taken_days%rowtype;
+    def_rem_days number;
+  begin
+    init_pp(pacc_id, pdept_id );
+    open c_get_taken_days;
+    fetch c_get_taken_days into cgt;
+    if c_get_taken_days%found then
+        if (pp_trial_period = 'N' and  pp_hired_this_year = false) then
+           -- standard number of days apply
+           def_rem_days :=  pp_total_leave_days -cgt.total_no_of_days;
+        elsif(pp_trial_period = 'N' and pp_hired_this_year = true) then
+          -- we calculate the ammount of legal leaves the emo has and extract from that what he has already taken (from approved requests)
+          def_rem_days := days_for_emp_hired_recently(pp_emp_id);
+          def_rem_days := def_rem_days - cgt.total_no_of_days;
+        elsif (pp_trial_period = 'D') then
+          -- assuming standard contract is 3 months then we have
+          def_rem_days := (3 * pp_days_per_month) - cgt.total_no_of_days;
+        end if;
+    else 
+        if (pp_trial_period = 'N' and  pp_hired_this_year = false) then
+           -- standard number of days apply
+           def_rem_days :=  pp_total_leave_days;
+        elsif(pp_trial_period = 'N' and pp_hired_this_year = true) then
+          -- we calculate the ammount of legal leaves the emo has and extract from that what he has already taken (from approved requests)
+          def_rem_days := days_for_emp_hired_recently(pp_emp_id);
+        elsif (pp_trial_period = 'D') then
+          -- assuming standard contract is 3 months then we have
+          def_rem_days := (3 * pp_days_per_month);
+        end if;        
+    end if; 
+    return def_rem_days; 
+    close c_get_taken_days;	
+  exception
+    when others then
+      raise_application_error(-20150, 'Issue getting taken_days');
+  end;
+
   function get_max_sick_days_year return number as
+
   begin
     null;
   end;

@@ -1,3 +1,4 @@
+
 -- ## Setting department requirements
 select * from dept_requirements;
 begin
@@ -70,8 +71,8 @@ select * from app_users;
 
 create table user_credentials(
   user_nm varchar2(60),
-  pass_word varchar2(256) 
-  --constraint fk_usr_nm_cred foreign key (user_nm) references app_users(code)
+  pass_word varchar2(256),
+  constraint fk_usr_nm_cred foreign key (user_nm) references app_users(code)
 ); 
 
 create table user_atributions(
@@ -190,8 +191,10 @@ create table legal_holidays(
 create table request_types(
   type_id number,
   req_code varchar2(60),
+  req_description varchar2(60),
   active varchar2(1),
   requires_flux varchar2(1) default 'N',
+  constraint pk_req_code primary key(req_code),
   constraint chck_active_req check (active in ('D','N')),
   constraint chck_necesita_flux check(requires_flux in ('D', 'N'))
 );
@@ -205,8 +208,7 @@ create sequence req_type_generator
 create table days_per_year(
   req_code varchar2(60),
   max_no_days number(10),
-  per_period varchar2(30) default 'Y',
-  constraint uq_req_no_days unique (req_code, max_no_days, per_period)  
+  constraint uq_req_no_days unique (req_code, max_no_days)  
 );
 
 create index idx_days_req_code on days_per_year(req_code);
@@ -220,10 +222,12 @@ create table dept_requirements(
 );
 drop table dept_requirements;
 create table app_users(
-  id number primary key,
+  id number,
   code varchar2(60),
   emp_id number(10),
   Active varchar2(1) default 'D', 
+  constraint uq_id_col Unique(id),
+  constraint pk_usr_nm_code primary key (code),
   constraint fk_emp_id foreign key (emp_id) references employees(emp_id),
   constraint ck_activ_in_val check (active in ('D', 'N'))
 );
@@ -247,7 +251,9 @@ create table departments(
   no_of_emplyees varchar2(60),
   no_of_main_emp number(30),
   no_of_res number(30),
-  constraint check_activ_dep check (active in ('D', 'N') )
+  tm_id number(30),
+  constraint check_activ_dep check (active in ('D', 'N') ),
+  constraint fk_tm_id foreign key(tm_id) references employees(emp_id)
  );
 
 create table participants(
@@ -257,3 +263,22 @@ create table participants(
   emp_id foreign key 
   dep_id
 );
+
+drop table contracts;
+create table contracts(
+  id number(30),
+  emp_id number, 
+  length_in_months number,
+  trial_period varchar2(1) ,
+  constraint pk_id_contract primary key(id),
+  constraint fk_emp_id_contr foreign key (emp_id) references employees(emp_id),
+  constraint chck_trial_period check(trial_period is not null),
+  constraint chck_tr_per_possible_values check(trial_period in ('D', 'N'))
+);
+-- table used to calculate attributed days for new employees or those emp who are on trial period. 
+create table days_per_month(
+  req_code varchar2(30),
+  no_of_days number(10),
+  constraint fk_req_day_p_month foreign key(req_code)references request_types(req_code)
+);
+create public synonym days_per_month for days_per_month;
