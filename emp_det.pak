@@ -1,4 +1,0 @@
-create or replace package EMP_details as 
-  procedure 
-end EMP_details;
-create or replace package body 
