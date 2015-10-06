@@ -16,7 +16,7 @@ create or replace package body REMAINING_DAYS as
   pp_hired_this_year boolean := false;
   pp_total_leave_days days_per_year.max_no_days%type;
   pp_dept_code varchar2(60);
-  pp_days_per_month number;         
+  pp_days_per_month number;
   procedure init_pp(pacc_id number, pdept_id number) is
     cursor c_get_emp is
       select ap.emp_id
