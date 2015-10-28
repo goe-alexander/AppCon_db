@@ -1,39 +1,18 @@
-select * from user_tables;
-select * from request_types;
-select * from APP_USERS;
-select * from requests for update;
-select * from departments;
--- db data insert for simple web tests
-insert into request_types(type_id, req_code, active, requires_flux) values (1, 'MEDICAL_LEAVE', 'D', 'N');
-insert into request_types(type_id, req_code, active, requires_flux) values (2, 'VACATION_LEAVE', 'D', 'D');
-insert into request_types(type_id, req_code, active, requires_flux) values (3, 'CULTURAL_HOLIDAY', 'D', 'N');
-insert into request_types(type_id, req_code, active, requires_flux) values (4, 'UNPAID_LEAVE', 'D', 'D');
+/* Package that contains all available actions on a request as well as 
+  procedures to determine which actions are available on which request 
+  based on user role and start date of each vaction leave
+*/
+create or replace package AC_req_actions as
+  procedure insert_request(p_l_type varchar, p_start_date varchar2, p_end_date varchar2, p_app_user_id varchar2, p_dept_id number, p_total_days number, p_out_msg out varchar2); 
+  function num_days_in_interval(pst_date date, pend_Date date) return number;
+  procedure delete_this_request(pid_req number, acc_id number, pmsg_out out varchar2);
+  procedure update_this__request(pid_req number, acc_Id number, pmsg_out out varchar2 );
+  function pending_vacation_req(pacc_Id number, pdept_id number) return boolean;
+  -- determine actions 
+  -- this function will return a special type that has the details of every request for a specified department. 
+  --function calculate_available_actions();
+end AC_req_actions;
 
--- User Role inserts
-
-insert into role_types(role_id, role_code, role_description, active) values(role_types_seq.nextval, 'ADMIN', 'Administrator, Bo$$', 'D');
-insert into role_types(role_id, role_code, role_description, active) values(role_types_seq.nextval, 'PROJECT_MANAGER', 'Responsible of organization', 'D');
-insert into role_types(role_id, role_code, role_description, active) values(role_types_seq.nextval, 'TEAM_LEAD', 'Head of team', 'D');
-insert into role_types(role_id, role_code, role_description, active) values(role_types_seq.nextval, 'HR', 'Human Resources', 'D');
-insert into role_types(role_id, role_code, role_description, active) values(role_types_seq.nextval, 'USER', 'Pawn', 'D');
-
-truncate table requests;
-Select * from user_tables;
---##--------------------
--- This procedure will return a specific type that will have the following structure 
--- 
--- 12 MONTH -> list of days -> list of users approved in that day
-create or replace procedure get_req_general_status() as
-
-begin
-
-
-end;
-
-create or replace package ADMIN_UTILS as 
-  -- admin procedure for registering new accounts.
-  procedure create new_user(p_user_name varchar2, p_password varchar2, p_department varchar2);
-end ADMIN_UTILS;
 create or replace package body AC_req_actions as
   -- packet variables
 
@@ -74,7 +53,7 @@ create or replace package body AC_req_actions as
       err_m := substr(sqlerrm, 1, 500);
       raise_application_error(-20150, err_m);
   end num_days_in_interval;
-
+  -- this function will be called from backing bean once remaining days and taken days are calculated
   function validate_period(p_st_date date, p_end_date date, pdpt_id number) return varchar2 as
       -- we search for how many days of the interval are already covered
     rez varchar2(60);
@@ -107,7 +86,7 @@ create or replace package body AC_req_actions as
       rez := 'OK';
       return rez;
     else
-      rez := 'Overlap beyond accepted number';
+      rez := 'Overlap beyond accepted number, all reserves are on Holiday in that period.';
       return rez;
     end if;
   exception
@@ -194,12 +173,23 @@ create or replace package body AC_req_actions as
   end insert_request;
  
   procedure delete_this_request(pid_req number, acc_id number, pmsg_out out varchar2 ) is
+    
   begin
+    -- we need to check that the user that is deleting 
     null;
   end;
   procedure update_this__request(pid_req number, acc_Id number, pmsg_out out varchar2 ) is
 
   begin
+    null;
+  end;
+  
+  function pending_vacation_req(pacc_Id number, pdept_id number) return boolean as
+    /*This function will return true if there are any pending requests in their final stage so 
+    that an employee may not make another vacation request.
+    ## */
+  begin 
+  
     null;
   end;
 end AC_req_actions;

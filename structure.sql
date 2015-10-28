@@ -1,65 +1,10 @@
 
--- ## Setting department requirements
-select * from dept_requirements;
-begin
-  for k in ( select dp.code, dp.no_of_emplyees from departments dp) loop
-    insert into dept_requirements(code, start_date, end_date, required_people, accepted_deficit)
-      values (k.code,  to_date('06/01/2015', 'MM/DD/YYYY'), to_date('06/30/2015','MM/DD/YYYY'), k.no_of_emplyees, 1);
-  end loop;
-end;
--- INSERTING LEGAL DAYS ---------------------
-select * from legal_days
- --   The only viable region agnostic alternative to determine if it is a weekday is:
-  MOD(TO_CHAR(my_date, 'J'), 7) + 1 IN (6, 7); -- it calculates the JULIAD DATES (all days since 4712 BC) divides by 7 and the mod is added 1  
--- ### ---------------------------------------  
--- script for verifying which legal deay is on a weekend;
-
-begin
-  for x in (select legal_date from legal_days ld where ld.in_year = to_char(sysdate, 'YYYY')) loop
-    if(MOD(TO_CHAR(x.legal_date, 'J'), 7) + 1 IN (6, 7)) then
-      dbms_output.put_line('This date is on the weekend -> ' || x.legal_date);
-    end if;
-  end loop;
-end;
--- ##----------------------------------------
-create table a as
-with calendar as (
-        select ((&startdate + rownum) - 1) as day
-        from dual
-        connect by rownum < &enddate - startdate
-    )
-select rownum as "S.No", to_date(day,'dd_mm_yyyy') as "Cal_Dt", to_char(day,'day') as "DayName"
-from calendar
----###------------------------------------------
-create or replace procedure clear_All_tb_in_db as
-  i number;
-begin
-i:=0;
-  for x in (select table_name from user_tables) loop
-    execute immediate 'drop table ' || x.table_name;
-    i := i+1;
-    dbms_output.put_line('Dropped table: ' || x.table_name);
-  end loop;
-  dbms_output.put_line('Nr tabele sterse: ' || i);
-end;
 
 
 -- Structure declarations
 --## Seing as this is an internal application there will not be any registration process through which accounts are created. 
---## They will be entered by admin or in future a registration option will be added. 
-select * from user_tables;
-drop table requests
-select * from user_tables;
-select * from departments
-select * from dept_requirements for update;
-select * from legal_days for update;
-SELECT * FROM DAYS_PER_YEAR FOR UPDATE;
-select * from DEPARTMENTS for update 
-select * from employees for update;
-select * from user_accounts for update;
-select * from REQUEST_TYPES for update;
-select * from user_accounts;
-select * from app_users for update;
+--## They will be entered by admin or in future a registration option if it will be added. 
+
 -- based on this table alone we can develop a select
 -- we create a table for mapping all legal days 
 create table legal_days(
@@ -112,7 +57,7 @@ select * from requests for update;
 drop table requests;
 desc requests;
 create table requests(
-  id number(10) primary key,
+  id number(10),
   type_of_req varchar2(60),
   Status varchar2(60),
   submition_date date, 
@@ -127,7 +72,13 @@ create table requests(
   Resolved varchar(1) default 'N',
   res_user varchar2(30),
   rejected varchar2(1) default 'N',
-  rejected_user varchar2(30)
+  rejected_user varchar2(30),
+  is_retroactive varchar2(1) default 'N', 
+  constraint req_id_pk primary key (id),
+  constraint status_req_fk foreign key(status) references status_types(stat_code),
+  constraint chk_validated_value check(validated in ('D', 'N'),
+  constraint chk_reseolved_value check(validated in ('D', 'N'),
+  constraint chk_rejected_value check(validated in ('D', 'N'),
 );
 create sequence req_id_seq
         start with 1
@@ -147,8 +98,6 @@ create table Possible_status_change(
   constraint fk_future_state foreign key(future_state) references status_types(stat_code) on delete cascade
 );
 
-
-select * from struct_table;
 
 create table status_types(
   stat_code varchar2(60) primary key,
@@ -282,3 +231,22 @@ create table days_per_month(
   constraint fk_req_day_p_month foreign key(req_code)references request_types(req_code)
 );
 create public synonym days_per_month for days_per_month;
+
+
+--- we create a table to store standrad notification messages based on upcomming leave days
+create table standard_notifications(
+  cod_notif varchar2(10),
+  Mesaj_notif varchar2(100),
+  target_for_msg varchar2(60),
+  constraint Coumpound_pk primary key(cod_notif, Mesaj_notif, target_for_msg)
+);
+create index standard_notif_idx on standard_notifications(cod_notif);
+
+-- we create a table for smartLeae Errrs
+create table sl_errors(
+  cod_err varchar2(10),
+  err_description varchar2(250),
+  active varchar2(1) default 'D',
+  constraint cor_err_pk primary key(cod_err) 
+);
+create index err_descr_idx on sl_errors(err_description);
