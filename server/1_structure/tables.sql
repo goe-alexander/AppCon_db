@@ -1,3 +1,4 @@
+## tables
 
 
 
@@ -12,7 +13,6 @@ create table legal_days(
   in_year varchar2(10),
   constraint pk_leg_days primary key (legal_date, in_year)
 );
-select * from app_users;
 
 create table user_credentials(
   user_nm varchar2(60),
@@ -41,7 +41,7 @@ create sequence role_types_seq
           increment by 1
           NOCYCLE
           NOCACHE;
-drop table user_accounts;
+
 create table user_accounts(
   user_id number(10) primary key,
   code varchar2(30) unique,
@@ -52,10 +52,7 @@ create table user_accounts(
   constraint chk_manager_acc check(manager in ('D','N')),
   constraint chk_admin_acc check(admin in ('D','N'))
 );
-select * from requests for update;
 
-drop table requests;
-desc requests;
 create table requests(
   id number(10),
   type_of_req varchar2(60),
@@ -80,15 +77,7 @@ create table requests(
   constraint chk_reseolved_value check(validated in ('D', 'N'),
   constraint chk_rejected_value check(validated in ('D', 'N'),
 );
-create sequence req_id_seq
-        start with 1
-        increment by 1
-        NOCYCLE
-        NOCACHE;
-create index idx_req_type_of on requests(type_of_req);
-create index idx_req_status on requests(Status);
-create index idx_req_acc_id on requests(Acc_id);
-create index idx_req_total_days on requests(total_no_of_days);
+
 
 --- ### These two tables represent the different states that a req may be in as well as the rule of from one state through the other
 create table Possible_status_change(
@@ -98,17 +87,12 @@ create table Possible_status_change(
   constraint fk_future_state foreign key(future_state) references status_types(stat_code) on delete cascade
 );
 
-
 create table status_types(
   stat_code varchar2(60) primary key,
   description varchar2(30),
   active varchar2(1)
 );
-create sequence stat_type_seq
-  start with 1
-  increment by 1
-  NOCACHE
-  NOCYCLE;
+
 
 ---###
 create table activities(
@@ -119,23 +103,16 @@ create table activities(
   in_execution varchar2(1),
   
 );
-create index on activities(act_code);
-create or replace sequence activities_id_generator
-  start with 1 
-  increment by 1
-  NOcache
-  nocycle;
+
+
 --- 
 
 ---
-drop table request_types;
 create table legal_holidays(
   month number,
   date_h date,
   active default 'D'  
   );
-
-
 
 create table request_types(
   type_id number,
@@ -147,7 +124,7 @@ create table request_types(
   constraint chck_active_req check (active in ('D','N')),
   constraint chck_necesita_flux check(requires_flux in ('D', 'N'))
 );
-create index idx_req_type_code on request_types(req_code);
+
 create sequence req_type_generator
   start with 1 
   increment by 1
@@ -160,7 +137,6 @@ create table days_per_year(
   constraint uq_req_no_days unique (req_code, max_no_days)  
 );
 
-create index idx_days_req_code on days_per_year(req_code);
 --
 create table dept_requirements(
   code varchar2(60),
@@ -169,7 +145,7 @@ create table dept_requirements(
   required_people number,
   accepted_deficit number
 );
-drop table dept_requirements;
+
 create table app_users(
   id number,
   code varchar2(60),
@@ -213,7 +189,6 @@ create table participants(
   dep_id
 );
 
-drop table contracts;
 create table contracts(
   id number(30),
   emp_id number, 
@@ -230,8 +205,6 @@ create table days_per_month(
   no_of_days number(10),
   constraint fk_req_day_p_month foreign key(req_code)references request_types(req_code)
 );
-create public synonym days_per_month for days_per_month;
-
 
 --- we create a table to store standrad notification messages based on upcomming leave days
 create table standard_notifications(
@@ -240,7 +213,6 @@ create table standard_notifications(
   target_for_msg varchar2(60),
   constraint Coumpound_pk primary key(cod_notif, Mesaj_notif, target_for_msg)
 );
-create index standard_notif_idx on standard_notifications(cod_notif);
 
 -- we create a table for smartLeae Errrs
 create table sl_errors(
@@ -249,4 +221,4 @@ create table sl_errors(
   active varchar2(1) default 'D',
   constraint cor_err_pk primary key(cod_err) 
 );
-create index err_descr_idx on sl_errors(err_description);
+

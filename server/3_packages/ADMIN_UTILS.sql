@@ -1,10 +1,5 @@
 /*Package for creating a new user for an employee*/
 -- tables needed for creating a new user 
-select * from employees;
-select * from app_users
-select * from user_atributions where we will insert a role selected from role_types;
-select * from user_credentials 
-
 
 create or replace package ADMIN_UTILS as
   -- admin procedure for registering new accounts.

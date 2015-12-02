@@ -5,7 +5,6 @@
  - get_all_employees in a department -> returns a collection
 */
 
-select * from employees;
 create or replace package EMP_UTILS as 
   procedure insert_employee(p_f_name varchar2, p_l_name varchar2, p_email varchar2, p_hire_date date, p_dep number, trial_period varchar2 );
   procedure delete_employee(p_f_name varchar2, p_l_name varchar2, p_email varchar2);
