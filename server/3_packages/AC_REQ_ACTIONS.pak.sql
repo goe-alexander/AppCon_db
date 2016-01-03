@@ -9,44 +9,43 @@ create or replace package AC_req_actions as
   );
   type col_overlapped_days is table of t_overlap_day;
   function is_working_day(pdate date) return boolean;
-  procedure insert_request(p_l_type varchar, p_start_date varchar2, p_end_date varchar2, p_app_user_id varchar2, p_dept_id number, p_total_days number, p_out_msg out varchar2); 
+  procedure insert_request(p_l_type varchar, p_start_date varchar2, p_end_date varchar2, p_acc_id number, p_dept_id number, p_total_days number, p_out_msg out varchar2, p_id_req out number);
   function num_days_in_interval(pst_date date, pend_Date date) return number;
   procedure delete_this_request(pid_req number, pacc_id number);
-  procedure update_this__request(pid_req number, pacc_Id number, p_upd_stmt varchar2);
+  procedure update_this_request(pid_req number, pacc_Id number, p_upd_stmt varchar2);
   function pending_vacation_req(pacc_Id number, pdept_id number ) return boolean;
   -- used by web to call before inserting any request we have to validate there is no overlap
   function validate_period(p_st_date date, p_end_date date, pdpt_id number) return varchar2;
-  -- this function will return a special type that has the details of every request for a specified department. 
+  -- this function will return a special type that has the details of every request for a specified department.
   --function calculate_available_actions();
-  
+
     function get_overlapped_days(p_st_date date, p_end_date date, p_dept_id number) return col_overlapped_days;
 end AC_req_actions;
-
 create or replace package body AC_req_actions as
-  function is_working_day(pdate date) return boolean as 
+  function is_working_day(pdate date) return boolean as
     rez boolean;
     -- all legal free days that are not weekend
-    cursor c_get_legal_days is 
+    cursor c_get_legal_days is
       select legal_date from legal_days ld
         where ld.in_year = to_char(sysdate,'YYYY')
           and (MOD(TO_CHAR(legal_date, 'J'), 7) + 1 NOT IN (6, 7))
           and ld.legal_date = pdate;
-    cgl c_get_legal_days%rowtype;      
+    cgl c_get_legal_days%rowtype;
   begin
-    rez := true; 
-    -- check if it's weekend 
+    rez := true;
+    -- check if it's weekend
     open c_get_legal_days;
     fetch c_get_legal_days into cgl;
-    if c_get_legal_days%notfound then 
-      if (MOD(TO_CHAR(pdate, 'J'), 7) + 1 IN (6, 7)) then  
-        rez := false;   
+    if c_get_legal_days%notfound then
+      if (MOD(TO_CHAR(pdate, 'J'), 7) + 1 IN (6, 7)) then
+        rez := false;
       end if;
-    else 
+    else
       rez := false;
-    end if; 
+    end if;
     return rez;
   end;
-  
+
   function num_days_in_interval(pst_date date, pend_Date date) return number as
     -- we choose all legal days that are not in a weekend
     cursor c_legal_day is
@@ -84,7 +83,7 @@ create or replace package body AC_req_actions as
       err_m := substr(sqlerrm, 1, 500);
       raise_application_error(-20150, err_m);
   end num_days_in_interval;
-  
+
   --#### This function will be called from backing bean once remaining days and taken days are calculated
   function validate_period(p_st_date date, p_end_date date, pdpt_id number) return varchar2 as
       -- we search for how many days of the interval are already covered
@@ -127,22 +126,14 @@ create or replace package body AC_req_actions as
         raise_application_error(-20155, exm);
   end validate_period;
 
-  procedure insert_request(p_l_type varchar, p_start_date varchar2, p_end_date varchar2, p_app_user_id varchar2, p_dept_id number, p_total_days number, p_out_msg out varchar2) as
+  procedure insert_request(p_l_type varchar, p_start_date varchar2, p_end_date varchar2, p_acc_id number, p_dept_id number, p_total_days number, p_out_msg out varchar2, p_id_req out number) as
     pending_req boolean;
-    v_acc_id number;
   begin
-    begin
-  	  select au.id into v_acc_id from app_users au where au.code = p_app_user_id;
-    exception
-      when no_data_found then
-        p_out_msg := 'Did not find used account code';
-        return;
-    end;
     pending_req := false;
     /*  if this point is reached then all values have been calculated and that means the minimum requirements have been fullfilled
       All that remains is to check wether there are no overlaps on the schedule.*/
     if p_l_type = 'VACATION_LEAVE'  then
-      pending_req := pending_vacation_req(v_acc_id, p_dept_id);
+      pending_req := pending_vacation_req(p_acc_id, p_dept_id);
       --  if it's a vacatin req and there is no overlap and no pending req then we insert a new request
       if(pending_req = false) then
         insert into requests
@@ -166,7 +157,7 @@ create or replace package body AC_req_actions as
                 p_l_type,
                 'SUBMIT',
                 trunc(sysdate),
-                v_acc_id,
+                p_acc_id,
                 p_dept_id,
                 p_start_date,
                 p_end_date,
@@ -176,8 +167,10 @@ create or replace package body AC_req_actions as
                 'N',
                 null,
                 'N');
+        p_id_req := req_id_seq.currval;       
       else
-        p_out_msg := 'You have pending Vacation requests that are unresolved';           
+        p_id_req := -1;
+        p_out_msg := 'You have pending Vacation requests that are unresolved';
       end if;
     else
           insert into requests
@@ -201,7 +194,7 @@ create or replace package body AC_req_actions as
                 p_l_type,
                 'SUBMIT',
                 trunc(sysdate),
-                (select au.id from app_users au where au.code = p_app_user_id),
+                p_acc_id,
                 p_dept_id,
                 p_start_date,
                 p_end_date,
@@ -211,9 +204,11 @@ create or replace package body AC_req_actions as
                 'N',
                 null,
                 'N');
+      p_id_req := req_id_seq.currval;
     end if;
   exception
     when others then
+       p_id_req := -1;
       p_out_msg := substr(sqlerrm, 1, 500);
   end insert_request;
 
@@ -234,15 +229,15 @@ create or replace package body AC_req_actions as
       errm := substr(sqlerrm, 1, 500);
       raise_application_error(-20154, 'Error deleting request: ' || errm);
   end;
-  procedure update_this__request(pid_req number, pacc_Id number, p_upd_stmt varchar2) is
+  procedure update_this_request(pid_req number, pacc_Id number, p_upd_stmt varchar2) is
     --  no need for additional checks here as we will have a procedure that calculates all of the possible actions on a request
     errm varchar2(500);
   begin
       EXECUTE IMMEDIATE p_upd_stmt;
   exception
-    when others then 
+    when others then
       errm := substr(sqlerrm, 1, 500);
-      raise_application_error(-20157, 'Error in updating request: ' || errm);    
+      raise_application_error(-20157, 'Error in updating request: ' || errm);
   end;
 
   function pending_vacation_req(pacc_Id number, pdept_id number) return boolean as
@@ -252,7 +247,7 @@ create or replace package body AC_req_actions as
     ## */
     -- we search for all unprocessed requests that are not retroactive and are from the year in question
     cursor c_get_pend_vac_leave is
-      select count(*)
+      select 1
         from requests rq
        where rq.status <> 'RESOLVED'
          and rq.is_retroactive = 'N'
@@ -269,12 +264,13 @@ create or replace package body AC_req_actions as
     end loop;
     return rez;
   end;
-  -- 
+  --
   function get_overlapped_days(p_st_date date, p_end_date date, p_dept_id number) return col_overlapped_days as
     od col_overlapped_days;
     currDate date;
     stDt date;
-    
+
+
     D number;
     Mnth varchar2(30);
   begin
@@ -291,11 +287,11 @@ create or replace package body AC_req_actions as
               od(od.last).day_overlapped := D;
               od(od.last).month_of_day := Mnth;
             end if;
-          else 
+          else
             currDate := currDate + 1;
-            continue;    
+            continue;
           end if;
-        currDate := currDate + 1;    
+        currDate := currDate + 1;
       end loop;
     end loop;
     return od;
