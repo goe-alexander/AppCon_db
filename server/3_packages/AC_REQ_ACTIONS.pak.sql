@@ -18,7 +18,6 @@ create or replace package AC_req_actions as
   function validate_period(p_st_date date, p_end_date date, pdpt_id number) return varchar2;
   -- this function will return a special type that has the details of every request for a specified department.
   --function calculate_available_actions();
-
     function get_overlapped_days(p_st_date date, p_end_date date, p_dept_id number) return col_overlapped_days;
 end AC_req_actions;
 create or replace package body AC_req_actions as
@@ -53,7 +52,7 @@ create or replace package body AC_req_actions as
         where ld.in_year = to_char(sysdate,'YYYY')
           and (MOD(TO_CHAR(legal_date, 'J'), 7) + 1 NOT IN (6, 7));
     init_number number;
-	  curr_Date date; -- cursor date that we use to go through the interval
+    curr_Date date; -- cursor date that we use to go through the interval
     err_m varchar2(500);
   begin
    -- we calculate the default number of days between the interval
@@ -127,15 +126,15 @@ create or replace package body AC_req_actions as
   end validate_period;
 
   procedure insert_request(p_l_type varchar, p_start_date varchar2, p_end_date varchar2, p_acc_id number, p_dept_id number, p_total_days number, p_out_msg out varchar2, p_id_req out number) as
-    pending_req boolean;
+    --pending_req boolean;
   begin
-    pending_req := false;
+    --pending_req := false;
     /*  if this point is reached then all values have been calculated and that means the minimum requirements have been fullfilled
       All that remains is to check wether there are no overlaps on the schedule.*/
     if p_l_type = 'VACATION_LEAVE'  then
-      pending_req := pending_vacation_req(p_acc_id, p_dept_id);
+      /*The pending vacation leave requests option will be used at a later date*/
+      --pending_req := pending_vacation_req(p_acc_id, p_dept_id);
       --  if it's a vacatin req and there is no overlap and no pending req then we insert a new request
-      if(pending_req = false) then
         insert into requests
               (id,
                type_of_req,
@@ -155,7 +154,7 @@ create or replace package body AC_req_actions as
             values
               ( REQ_ID_SEQ.NEXTVAL,
                 p_l_type,
-                'SUBMIT',
+                'SUBMITTED',
                 trunc(sysdate),
                 p_acc_id,
                 p_dept_id,
@@ -168,10 +167,10 @@ create or replace package body AC_req_actions as
                 null,
                 'N');
         p_id_req := req_id_seq.currval;       
-      else
+/*      else
         p_id_req := -1;
         p_out_msg := 'You have pending Vacation requests that are unresolved';
-      end if;
+      end if;*/
     else
           insert into requests
               (id,
@@ -192,7 +191,7 @@ create or replace package body AC_req_actions as
             values
               ( REQ_ID_SEQ.NEXTVAL,
                 p_l_type,
-                'SUBMIT',
+                'SUBMITTED',
                 trunc(sysdate),
                 p_acc_id,
                 p_dept_id,
@@ -268,9 +267,6 @@ create or replace package body AC_req_actions as
   function get_overlapped_days(p_st_date date, p_end_date date, p_dept_id number) return col_overlapped_days as
     od col_overlapped_days;
     currDate date;
-    stDt date;
-
-
     D number;
     Mnth varchar2(30);
   begin

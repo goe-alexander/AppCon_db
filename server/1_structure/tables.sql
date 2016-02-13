@@ -79,13 +79,7 @@ create table requests(
 );
 
 
---- ### These two tables represent the different states that a req may be in as well as the rule of from one state through the other
-create table Possible_status_change(
-  current_state varchar2(30),
-  future_state varchar2(30),
-  constraint fk_curr_state foreign key(current_state) references status_types(stat_code) on delete cascade,
-  constraint fk_future_state foreign key(future_state) references status_types(stat_code) on delete cascade
-);
+--- ### Status types in which the request may be
 
 create table status_types(
   stat_code varchar2(60) primary key,
